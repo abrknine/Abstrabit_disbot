@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Discord dark theme palette */
+@theme {
+  --color-primary: #313338;
+  --color-secondary: #2b2d31;
+  --color-tertiary: #1e1f22;
+  --color-floating: #232428;
+  --color-hover: #2e3035;
+  --color-selected: #404249;
+  --color-blurple: #5865f2;
+  --color-blurple-dark: #4752c4;
+  --color-dgreen: #23a55a;
+  --color-dred: #f23f42;
+  --color-dyellow: #f0b232;
+  --color-normal: #dbdee1;
+  --color-muted: #949ba4;
+  --color-heading: #f2f3f5;
+  --color-label: #b5bac1;
+  --color-dlink: #00a8fc;
+}
+
+body {
+  font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #313338;
+  color: #dbdee1;
+}
