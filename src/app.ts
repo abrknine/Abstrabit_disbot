@@ -10,7 +10,9 @@ import { interactionsRouter } from "./routes/interactions-router";
 
 export const app = express();
 
-app.use(cors({ origin: env.CORS_ORIGIN }));
+const corsOrigin =
+  env.CORS_ORIGIN === "*" ? "*" : env.CORS_ORIGIN.split(",").map((o) => o.trim());
+app.use(cors({ origin: corsOrigin }));
 
 // Capture the raw body: Ed25519 verification must run against the exact
 // bytes Discord signed, not a re-serialized parse.

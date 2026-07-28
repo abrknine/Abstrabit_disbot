@@ -15,7 +15,8 @@ const envSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.string().url().optional()
   ),
-  // Frontend origin allowed to call the API (use the deployed frontend URL in production).
+  // Frontend origin(s) allowed to call the API, comma-separated.
+  // Use the deployed frontend URL in production, e.g. "https://myapp.vercel.app".
   CORS_ORIGIN: z.string().default("*"),
   ADMIN_EMAIL: z.string().email(),
   ADMIN_PASSWORD: z.string().min(8),
