@@ -1,0 +1,7 @@
+ALTER TABLE interactions ADD COLUMN IF NOT EXISTS status      TEXT NOT NULL DEFAULT 'n/a';
+ALTER TABLE interactions ADD COLUMN IF NOT EXISTS claimed_by  TEXT;
+ALTER TABLE interactions ADD COLUMN IF NOT EXISTS ai_summary  TEXT;
+ALTER TABLE interactions ADD COLUMN IF NOT EXISTS ai_category TEXT;
+ALTER TABLE interactions ADD COLUMN IF NOT EXISTS ai_priority TEXT;
+
+ALTER TABLE command_config ADD COLUMN IF NOT EXISTS ai_enabled BOOLEAN NOT NULL DEFAULT true;
