@@ -5,6 +5,7 @@ import { globalErrorHandler } from "./middlewares/global-error-handler";
 import { notFoundHandler } from "./middlewares/not-found-handler";
 import { authRouter } from "./routes/auth-router";
 import { dashboardRouter } from "./routes/dashboard-router";
+import { discordRouter } from "./routes/discord-router";
 import { healthRouter } from "./routes/health-router";
 import { interactionsRouter } from "./routes/interactions-router";
 
@@ -27,6 +28,7 @@ app.use(
 app.use("/interactions", interactionsRouter);
 app.use("/healthz", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/discord", discordRouter);
 app.use("/api", dashboardRouter);
 
 app.use(notFoundHandler);

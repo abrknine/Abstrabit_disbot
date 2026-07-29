@@ -1,21 +1,29 @@
 import { env } from "../../config/env";
 import { mirrorLogger } from "../../utils/logger";
+import { getGuildRepository } from "../storage/guild-repository";
 import { getRepository } from "../storage/interaction-repository";
 
 const MAX_ATTEMPTS = 3;
 const BACKOFF_MS = 500;
 
 /**
- * Posts a notification to the second channel's webhook. Runs after the
- * Discord reply has already been sent, so a mirror failure never loses the
- * interaction — the outcome (sent/failed + error) is recorded on the row.
+ * Posts a notification to the mirror webhook — the guild's own webhook when
+ * the admin configured one via the dashboard, otherwise the env fallback.
+ * Runs after the Discord reply has already been sent, so a mirror failure
+ * never loses the interaction — the outcome is recorded on the row.
  */
-export const mirrorNotification = async (interactionId: string, content: string): Promise<void> => {
+export const mirrorNotification = async (
+  interactionId: string,
+  guildId: string,
+  content: string
+): Promise<void> => {
   const repo = getRepository();
+  const guild = await getGuildRepository().findById(guildId);
+  const webhookUrl = guild?.mirrorWebhookUrl ?? env.MIRROR_WEBHOOK_URL;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const res = await fetch(env.MIRROR_WEBHOOK_URL, {
+      const res = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
