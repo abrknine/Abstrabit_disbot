@@ -8,8 +8,9 @@ export const listInteractions = async (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const command = typeof req.query.command === "string" ? req.query.command : undefined;
   const guildId = typeof req.query.guildId === "string" ? req.query.guildId : undefined;
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
 
-  const interactions = await getRepository().listRecent({ limit, command, guildId });
+  const interactions = await getRepository().listRecent({ limit, command, guildId, status });
   ApiResponse.success(res, interactions);
 };
 

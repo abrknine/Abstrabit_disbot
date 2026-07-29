@@ -1,13 +1,8 @@
 /**
  * Self-contained smoke test: boots the app in-process with a generated
- * Ed25519 keypair, then replays the exact scenarios Discord (and the
- * reviewers) will throw at the endpoint:
- *   1. PING with a valid signature       -> 200 PONG
- *   2. PING with a forged signature      -> 401
- *   3. Request with no signature headers -> 401
- *   4. /status command (signed)          -> 200 reply
- *   5. /report command (signed)          -> 200 reply
- *   6. Same /report delivered again      -> duplicate ack, no double record
+ * Ed25519 keypair and replays what Discord (and reviewers) will throw at it:
+ * signature checks, PING, modal open/submit, deferred ack, dedup, buttons,
+ * AI-off fallback, auth, and config gating.
  */
 import nacl from "tweetnacl";
 
@@ -17,14 +12,16 @@ const toHex = (b: Uint8Array) => Buffer.from(b).toString("hex");
 // Configure env BEFORE importing app (dotenv does not override preset vars).
 process.env.NODE_ENV = "test";
 process.env.DISCORD_PUBLIC_KEY = toHex(keypair.publicKey);
-process.env.DISCORD_APP_ID = process.env.DISCORD_APP_ID || "123456789012345678";
-process.env.DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || "123456789012345678";
+process.env.DISCORD_APP_ID = "123456789012345678";
+process.env.DISCORD_GUILD_ID = "123456789012345678";
 process.env.DISCORD_BOT_TOKEN = "test-token";
 process.env.MIRROR_WEBHOOK_URL = "https://mirror.invalid/webhook";
 process.env.ADMIN_EMAIL = "admin@test.local";
 process.env.ADMIN_PASSWORD = "test-password";
 process.env.JWT_SECRET = "0".repeat(64);
 process.env.DATABASE_URL = ""; // force in-memory store (delete would let dotenv re-load it from .env)
+process.env.AI_API_KEY = ""; // AI off — tickets must fall back to "unclassified"
+process.env.DISCORD_CLIENT_SECRET = "test-client-secret";
 
 const { app } = await import("../src/app");
 const { getRepository } = await import("../src/services/storage/interaction-repository");
@@ -57,55 +54,84 @@ const check = (name: string, ok: boolean, detail: unknown) => {
   if (!ok) failures++;
 };
 
+const user = { member: { user: { id: "u1", username: "alice" } }, guild_id: "guild-1", channel_id: "chan-1" };
 const ping = { id: "ping-1", type: 1, token: "t" };
-const statusCmd = {
-  id: "int-status-1", type: 2, token: "t", guild_id: "guild-1", channel_id: "chan-1",
-  member: { user: { id: "u1", username: "alice" } },
-  data: { name: "status" },
-};
-const reportCmd = {
-  id: "int-report-1", type: 2, token: "t", guild_id: "guild-1", channel_id: "chan-1",
-  member: { user: { id: "u1", username: "alice" } },
-  data: { name: "report", options: [{ name: "text", type: 3, value: "login is broken" }] },
+const reportCmd = { id: "int-report-1", type: 2, token: "t", ...user, data: { name: "report" } };
+const statusCmd = { id: "int-status-1", type: 2, token: "t", ...user, data: { name: "status" } };
+const modalSubmit = {
+  id: "int-modal-1", type: 5, token: "t", ...user,
+  data: {
+    custom_id: "report_modal",
+    components: [
+      { type: 1, components: [{ type: 4, custom_id: "title", value: "Login broken" }] },
+      { type: 1, components: [{ type: 4, custom_id: "description", value: "Cannot log in after reset" }] },
+      { type: 1, components: [{ type: 4, custom_id: "urgency", value: "high" }] },
+    ],
+  },
 };
 
+// Signature & PING
 const r1 = await post(ping);
 check("valid PING answered with PONG", r1.status === 200 && r1.body?.type === 1, r1);
-
 const r2 = await post(ping, { forge: true });
 check("forged signature rejected with 401", r2.status === 401, r2);
-
 const r3 = await post(ping, { unsigned: true });
 check("missing signature headers rejected with 401", r3.status === 401, r3);
 
-const r4 = await post(statusCmd);
+// /report opens the modal
+const r4 = await post(reportCmd);
 check(
-  "/status returns a reply",
-  r4.status === 200 && r4.body?.type === 4 && /Reports logged/.test(r4.body?.data?.content ?? ""),
+  "/report opens a modal (type 9)",
+  r4.status === 200 && r4.body?.type === 9 && r4.body?.data?.custom_id === "report_modal",
   r4
 );
 
-const r5 = await post(reportCmd);
-check(
-  "/report returns confirmation",
-  r5.status === 200 && r5.body?.type === 4 && /logged/.test(r5.body?.data?.content ?? ""),
-  r5
-);
+// Modal submit defers, records the ticket
+const r5 = await post(modalSubmit);
+check("modal submit acknowledged with deferred response (type 5)", r5.status === 200 && r5.body?.type === 5, r5);
 
-const r6 = await post(reportCmd);
+const r6 = await post(modalSubmit);
 check(
-  "duplicate delivery acknowledged without reprocessing",
+  "duplicate modal submit acknowledged without reprocessing",
   r6.status === 200 && /already processed/.test(r6.body?.data?.content ?? ""),
   r6
 );
 
-const r7 = await post(statusCmd === reportCmd ? statusCmd : { ...statusCmd, id: "int-status-2" });
+// Give the async finalize (AI fallback + mirror to invalid host) a moment.
+await new Promise((r) => setTimeout(r, 300));
+
+// /status reflects the queue
+const r7 = await post(statusCmd);
 check(
-  "report count is 1 after duplicate delivery (dedup worked)",
-  r7.status === 200 && /\*\*1\*\*/.test(r7.body?.data?.content ?? ""),
+  "/status reports the ticket queue",
+  r7.status === 200 && /1 open/.test(r7.body?.data?.content ?? ""),
   r7
 );
 
+// Button click: claim the ticket (interaction type 3)
+const claimClick = {
+  id: "int-click-1", type: 3, token: "t", ...user,
+  member: { user: { id: "u2", username: "mod-bob" } },
+  data: { custom_id: "claim:int-modal-1", component_type: 2 },
+};
+const r8 = await post(claimClick);
+check(
+  "claim button updates the ticket message (type 7)",
+  r8.status === 200 && r8.body?.type === 7 && /In progress/.test(r8.body?.data?.content ?? "") &&
+    /mod-bob/.test(r8.body?.data?.content ?? ""),
+  r8
+);
+
+const resolveClick = { ...claimClick, id: "int-click-2", data: { custom_id: "resolve:int-modal-1", component_type: 2 } };
+const r9 = await post(resolveClick);
+check(
+  "resolve button closes the ticket and removes buttons",
+  r9.status === 200 && /Resolved/.test(r9.body?.data?.content ?? "") &&
+    (r9.body?.data?.components ?? []).length === 0,
+  r9
+);
+
+// Admin auth + dashboard
 const login = async (email: string, password: string) => {
   const res = await fetch(`${base}/api/auth/login`, {
     method: "POST",
@@ -115,12 +141,15 @@ const login = async (email: string, password: string) => {
   return { status: res.status, body: await res.json() };
 };
 
-const r8 = await login("admin@test.local", "wrong-password");
-check("login rejects wrong password", r8.status === 401, r8);
+const r10 = await login("admin@test.local", "wrong-password");
+check("login rejects wrong password", r10.status === 401, r10);
 
-const r9 = await login("admin@test.local", "test-password");
-const token = r9.body?.data?.token;
-check("login returns a token", r9.status === 200 && !!token, r9);
+const r11 = await login("admin@test.local", "test-password");
+const token = r11.body?.data?.token;
+check("login returns a token", r11.status === 200 && !!token, r11);
+
+const r12 = await fetch(`${base}/api/interactions`);
+check("dashboard API rejects missing token", r12.status === 401, await r12.json());
 
 const authed = (path: string, init: RequestInit = {}) =>
   fetch(`${base}/api${path}`, {
@@ -128,24 +157,46 @@ const authed = (path: string, init: RequestInit = {}) =>
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...init.headers },
   });
 
-const r10 = await fetch(`${base}/api/interactions`);
-check("dashboard API rejects missing token", r10.status === 401, await r10.json());
+const rows = (await (await authed("/interactions")).json())?.data;
+const ticket = rows?.find((r: { command: string }) => r.command === "report");
+check("dashboard lists the ticket and the status command", rows?.length === 2, rows?.length);
+check(
+  "AI-off fallback stored ticket as unclassified",
+  ticket?.aiCategory === "unclassified" && ticket?.status === "resolved" && ticket?.claimedBy === "mod-bob",
+  ticket
+);
 
-const r11 = await authed("/interactions");
-const rows = (await r11.json())?.data;
-check("dashboard lists recorded interactions", r11.status === 200 && rows?.length === 3, rows?.length);
+const stats = (await (await authed("/stats")).json())?.data;
+check("stats include ticket queue numbers", stats?.total === 2 && stats?.openTickets === 0, stats);
 
-const r12 = await authed("/config/report", {
+// OAuth connect flow
+const installRes = await authed("/discord/install-url");
+const installUrl = (await installRes.json())?.data?.url ?? "";
+check(
+  "install URL is a Discord authorize link with signed state",
+  installRes.status === 200 &&
+    installUrl.startsWith("https://discord.com/oauth2/authorize") &&
+    installUrl.includes("state="),
+  installUrl.slice(0, 80)
+);
+
+const cbUnauth = await fetch(`${base}/api/discord/install-url`);
+check("install URL requires admin auth", cbUnauth.status === 401, cbUnauth.status);
+
+const badState = await fetch(`${base}/api/discord/callback?code=x&state=tampered`);
+check("oauth callback rejects tampered state", badState.status === 400, badState.status);
+
+const r13 = await authed("/config/report", {
   method: "PUT",
-  body: JSON.stringify({ enabled: false, mirrorEnabled: true, replyTemplate: null }),
+  body: JSON.stringify({ enabled: false, mirrorEnabled: true, aiEnabled: true, replyTemplate: null }),
 });
-check("admin can update command config", r12.status === 200, await r12.json());
+check("admin can update command config", r13.status === 200, await r13.json());
 
-const r13 = await post({ ...reportCmd, id: "int-report-disabled" });
+const r14 = await post({ ...reportCmd, id: "int-report-disabled" });
 check(
   "disabled command replies with disabled notice",
-  r13.status === 200 && /disabled/.test(r13.body?.data?.content ?? ""),
-  r13
+  r14.status === 200 && /disabled/.test(r14.body?.data?.content ?? ""),
+  r14
 );
 
 server.close();
