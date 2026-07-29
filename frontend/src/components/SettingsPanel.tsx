@@ -27,6 +27,7 @@ const ConfigCard = ({ config }: { config: CommandConfig }) => {
   const dirty =
     draft.enabled !== config.enabled ||
     draft.mirrorEnabled !== config.mirrorEnabled ||
+    draft.aiEnabled !== config.aiEnabled ||
     (draft.replyTemplate ?? "") !== (config.replyTemplate ?? "");
 
   return (
@@ -49,6 +50,14 @@ const ConfigCard = ({ config }: { config: CommandConfig }) => {
           <p className="text-xs text-muted">Send a webhook notification for this command</p>
         </div>
         <Toggle on={draft.mirrorEnabled} onChange={(v) => setDraft({ ...draft, mirrorEnabled: v })} />
+      </div>
+
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <p className="text-[15px]">AI triage</p>
+          <p className="text-xs text-muted">Summarize, categorize and prioritize tickets with the LLM</p>
+        </div>
+        <Toggle on={draft.aiEnabled} onChange={(v) => setDraft({ ...draft, aiEnabled: v })} />
       </div>
 
       <div className="py-2">

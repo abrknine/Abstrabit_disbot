@@ -2,7 +2,7 @@ import { useAppDispatch, useAppSelector } from "../store";
 import { logout } from "../store/auth-slice";
 import type { Tab } from "../pages/DashboardPage";
 
-const TABS: Tab[] = ["command-log", "settings"];
+const TABS: Tab[] = ["command-log", "servers", "settings"];
 
 export const ChannelSidebar = ({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) => {
   const dispatch = useAppDispatch();

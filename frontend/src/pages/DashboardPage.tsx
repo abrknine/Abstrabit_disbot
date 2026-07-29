@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { ChannelSidebar } from "../components/ChannelSidebar";
 import { LogPanel } from "../components/LogPanel";
 import { ServerRail } from "../components/ServerRail";
+import { ServersPanel } from "../components/ServersPanel";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { useAppDispatch } from "../store";
 import { fetchConfig } from "../store/config-slice";
 import { fetchLogs, fetchStats } from "../store/logs-slice";
 
-export type Tab = "command-log" | "settings";
+export type Tab = "command-log" | "servers" | "settings";
 
 const POLL_MS = 10_000;
 
@@ -29,7 +30,9 @@ export const DashboardPage = () => {
   const topic =
     tab === "command-log"
       ? "Live log of every slash command and action taken"
-      : "Configure how each command behaves";
+      : tab === "servers"
+        ? "Connect Discord servers and pick their mirror channels"
+        : "Configure how each command behaves";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -44,7 +47,9 @@ export const DashboardPage = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {tab === "command-log" ? <LogPanel /> : <SettingsPanel />}
+          {tab === "command-log" && <LogPanel />}
+          {tab === "servers" && <ServersPanel />}
+          {tab === "settings" && <SettingsPanel />}
         </div>
       </main>
     </div>
