@@ -32,6 +32,7 @@ export interface ConnectedGuild {
   icon: string | null;
   mirrorChannelId: string | null;
   mirrorWebhookUrl: string | null;
+  status: "connected" | "removed";
   connectedAt: string;
 }
 

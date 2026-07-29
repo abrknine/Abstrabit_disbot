@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { commandDefinitions } from "../services/discord/command-definitions";
 import {
   createChannelWebhook,
+  listBotGuildIds,
   listGuildChannels,
   registerGuildCommands,
 } from "../services/discord/discord-api";
@@ -37,8 +38,28 @@ export const oauthCallback = async (req: Request, res: Response) => {
   res.redirect(`${env.FRONTEND_URL}/?connect=ok&guild=${guild.guildId}`);
 };
 
+/**
+ * Lists connected guilds, reconciled against live bot membership: the bot
+ * gets no event when it is kicked, so we diff our records with Discord's
+ * member list on each load. A re-added guild flips back to connected.
+ */
 export const listGuilds = async (_req: Request, res: Response) => {
-  ApiResponse.success(res, await getGuildRepository().list());
+  const repo = getGuildRepository();
+  const liveIds = await listBotGuildIds();
+
+  if (liveIds) {
+    for (const guild of await repo.list()) {
+      const isMember = liveIds.has(guild.guildId);
+      if (guild.status === "connected" && !isMember) {
+        await repo.setStatus(guild.guildId, "removed");
+        apiLogger.info({ guildId: guild.guildId, name: guild.name }, "guild marked removed (bot kicked)");
+      } else if (guild.status === "removed" && isMember) {
+        await repo.setStatus(guild.guildId, "connected");
+      }
+    }
+  }
+
+  ApiResponse.success(res, await repo.list());
 };
 
 export const listChannels = async (req: Request, res: Response) => {

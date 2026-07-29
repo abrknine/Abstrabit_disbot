@@ -10,8 +10,14 @@ export class MemoryGuildRepository implements GuildRepository {
       ...guild,
       mirrorChannelId: existing?.mirrorChannelId ?? null,
       mirrorWebhookUrl: existing?.mirrorWebhookUrl ?? null,
+      status: "connected",
       connectedAt: existing?.connectedAt ?? new Date().toISOString(),
     });
+  }
+
+  async setStatus(guildId: string, status: "connected" | "removed"): Promise<void> {
+    const guild = this.guilds.get(guildId);
+    if (guild) guild.status = status;
   }
 
   async findById(guildId: string): Promise<Guild | null> {

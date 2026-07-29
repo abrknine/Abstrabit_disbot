@@ -7,6 +7,7 @@ const GUILD_COLUMNS = `
   icon,
   mirror_channel_id  AS "mirrorChannelId",
   mirror_webhook_url AS "mirrorWebhookUrl",
+  status,
   connected_at       AS "connectedAt"`;
 
 export class PgGuildRepository implements GuildRepository {
@@ -16,8 +17,16 @@ export class PgGuildRepository implements GuildRepository {
     await this.pool.query(
       `INSERT INTO guilds (guild_id, name, icon)
        VALUES ($1, $2, $3)
-       ON CONFLICT (guild_id) DO UPDATE SET name = $2, icon = $3, updated_at = now()`,
+       ON CONFLICT (guild_id) DO UPDATE
+         SET name = $2, icon = $3, status = 'connected', updated_at = now()`,
       [guild.guildId, guild.name, guild.icon]
+    );
+  }
+
+  async setStatus(guildId: string, status: "connected" | "removed"): Promise<void> {
+    await this.pool.query(
+      `UPDATE guilds SET status = $2, updated_at = now() WHERE guild_id = $1`,
+      [guildId, status]
     );
   }
 

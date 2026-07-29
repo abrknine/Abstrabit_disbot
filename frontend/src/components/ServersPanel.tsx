@@ -49,29 +49,40 @@ const GuildCard = ({ guild }: { guild: ConnectedGuild }) => {
   const channels = useAppSelector((s) => s.servers.channels[guild.guildId]);
   const saving = useAppSelector((s) => s.servers.saving) === guild.guildId;
   const [selected, setSelected] = useState(guild.mirrorChannelId ?? "");
+  const removed = guild.status === "removed";
 
   useEffect(() => {
-    dispatch(fetchChannels(guild.guildId));
-  }, [dispatch, guild.guildId]);
+    if (!removed) dispatch(fetchChannels(guild.guildId));
+  }, [dispatch, guild.guildId, removed]);
 
   const currentChannel = channels?.find((c) => c.id === guild.mirrorChannelId);
 
   return (
-    <div className="mb-3 rounded-lg bg-secondary p-4">
+    <div className={`mb-3 rounded-lg bg-secondary p-4 ${removed ? "opacity-70" : ""}`}>
       <div className="mb-2 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blurple font-bold text-white">
           {guild.name[0]?.toUpperCase() ?? "?"}
         </div>
-        <div>
-          <p className="font-semibold text-heading">{guild.name}</p>
+        <div className="flex-1">
+          <p className="font-semibold text-heading">
+            {guild.name}
+            {removed && (
+              <span className="ml-2 rounded bg-dred/20 px-2 py-0.5 text-xs font-semibold text-dred">
+                bot removed
+              </span>
+            )}
+          </p>
           <p className="text-xs text-muted">
-            {guild.mirrorWebhookUrl
-              ? `Mirroring to #${currentChannel?.name ?? guild.mirrorChannelId}`
-              : "Mirror channel not configured — using the global fallback webhook"}
+            {removed
+              ? "The bot was kicked from this server — history is kept; re-add it with the button above"
+              : guild.mirrorWebhookUrl
+                ? `Mirroring to #${currentChannel?.name ?? guild.mirrorChannelId}`
+                : "Mirror channel not configured — using the global fallback webhook"}
           </p>
         </div>
       </div>
 
+      {removed ? null : (
       <div className="flex items-center gap-2">
         <select
           value={selected}
@@ -93,6 +104,7 @@ const GuildCard = ({ guild }: { guild: ConnectedGuild }) => {
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
+      )}
     </div>
   );
 };

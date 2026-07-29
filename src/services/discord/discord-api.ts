@@ -19,6 +19,23 @@ export interface GuildChannel {
   type: number;
 }
 
+/**
+ * Ids of guilds the bot is currently a member of. Returns null on failure so
+ * callers can skip reconciliation rather than falsely mark guilds removed.
+ */
+export const listBotGuildIds = async (): Promise<Set<string> | null> => {
+  const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+    headers: botHeaders(),
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  if (!res?.ok) {
+    discordLogger.warn({ status: res?.status ?? 0 }, "failed to list bot guilds");
+    return null;
+  }
+  const guilds = (await res.json()) as { id: string }[];
+  return new Set(guilds.map((g) => g.id));
+};
+
 /** Text channels of a guild the bot is in. */
 export const listGuildChannels = async (guildId: string): Promise<GuildChannel[]> => {
   const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
