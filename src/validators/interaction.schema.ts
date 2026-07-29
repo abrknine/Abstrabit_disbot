@@ -3,7 +3,8 @@ import { z } from "zod";
 /**
  * Light structural validation of the interaction payload. Authenticity is
  * already proven by the Ed25519 signature; this guards against malformed
- * bodies reaching the service layer.
+ * bodies reaching the service layer. `data` varies by interaction type
+ * (commands carry `name`, components/modals carry `custom_id`).
  */
 export const interactionSchema = z
   .object({
@@ -14,7 +15,8 @@ export const interactionSchema = z
     channel_id: z.string().optional(),
     data: z
       .object({
-        name: z.string().min(1),
+        name: z.string().optional(),
+        custom_id: z.string().optional(),
         options: z
           .array(
             z.object({
@@ -24,7 +26,9 @@ export const interactionSchema = z
             })
           )
           .optional(),
+        components: z.array(z.any()).optional(),
       })
+      .passthrough()
       .optional(),
   })
   .passthrough();
