@@ -1,7 +1,7 @@
 
 
 
-AI TOOL I USED-> CLAUDE MODEL SONNET4.5  WEB CHAT Antigravity for debuggig
+AI TOOL I USED-> CLAUDE MODEL SONNET4.5  WEB CHAT and  Antigravity for debuggig
 
                 I Split Project into 4 phases
 
@@ -15,14 +15,14 @@ Phase 3-> Extentended to deliver the extras and giving prodcut a actual usecase
 Phase 4 ->Testing 
 
 
-                Some architecturak decison i make 
+                Some architectural decision i make 
 
-1--Using my old backend proactices in code to make it more modular like using proper util, vlaidation,scripts,controler-service pattern,backend based pagination etc etc  correct design patterns that i used in production code 
+1--Using my old backend proactices in code to make it more modular like using proper util, validation,scripts,controler-service pattern,backend based pagination etc etc  correct design patterns that i used in production code 
 
 2--I didnt make resolve and claim button in secind server 
 so i am only mirroring that ai respsoses i secind server no actions there , i did this beacuse  webhook message cannot carry button etc so only an ai genrted respose in send there
 
-3-- I used an md of my own best_backend_architectural.md patterns that i used for prodcution grade baceknd made in typscipt(nodejs) environemnt 
+3-- I used an md of my own backend_best_architectural.md (didnet add in git as its contain some confidential pattern and folder names relevent to production i work on)patterns that i used for prodcution grade backend made in typscipt(nodejs) environemnt 
 
 
                  Bug i solved that i faced while using ai

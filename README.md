@@ -112,11 +112,3 @@ TESTING IT (FOR REVIEWERS)
 6. back on the dashboard: command log with ai triage, stats, config toggles.
    flip /report off and run it in discord to see the disabled reply
 
-
-KNOWN LIMITATIONS
-
-- claim/resolve buttons have no role check yet - any member can click them
-- dashboard admins see all connected servers; server owners have no self-serve login
-- the reporter's ticket card stops updating 15 min after filing (discord interaction
-  token expiry) - db and dashboard stay correct
-- command config is global, not per server
