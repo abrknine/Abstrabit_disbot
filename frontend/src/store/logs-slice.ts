@@ -6,6 +6,7 @@ interface LogsState {
   items: Interaction[];
   stats: Stats | null;
   commandFilter: string;
+  statusFilter: string;
   loading: boolean;
 }
 
@@ -13,14 +14,17 @@ const initialState: LogsState = {
   items: [],
   stats: null,
   commandFilter: "all",
+  statusFilter: "all",
   loading: false,
 };
 
 export const fetchLogs = createAsyncThunk<Interaction[], void, { state: { logs: LogsState } }>(
   "logs/fetch",
   async (_, { getState }) => {
-    const { commandFilter } = getState().logs;
-    const query = commandFilter === "all" ? "" : `&command=${commandFilter}`;
+    const { commandFilter, statusFilter } = getState().logs;
+    const query =
+      (commandFilter === "all" ? "" : `&command=${commandFilter}`) +
+      (statusFilter === "all" ? "" : `&status=${statusFilter}`);
     return api<Interaction[]>(`/interactions?limit=100${query}`);
   }
 );
@@ -33,6 +37,9 @@ const logsSlice = createSlice({
   reducers: {
     setCommandFilter: (state, action: PayloadAction<string>) => {
       state.commandFilter = action.payload;
+    },
+    setStatusFilter: (state, action: PayloadAction<string>) => {
+      state.statusFilter = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -53,5 +60,5 @@ const logsSlice = createSlice({
   },
 });
 
-export const { setCommandFilter } = logsSlice.actions;
+export const { setCommandFilter, setStatusFilter } = logsSlice.actions;
 export default logsSlice.reducer;

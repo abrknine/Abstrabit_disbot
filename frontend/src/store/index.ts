@@ -3,12 +3,14 @@ import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux
 import authReducer from "./auth-slice";
 import configReducer from "./config-slice";
 import logsReducer from "./logs-slice";
+import serversReducer from "./servers-slice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     logs: logsReducer,
     config: configReducer,
+    servers: serversReducer,
   },
 });
 
